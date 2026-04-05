@@ -1,0 +1,14 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "email-maker-bot",
+  "main": "src/worker.mjs",
+  "compatibility_date": "2026-04-05",
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1
+  },
+  "vars": {
+    "OPENAI_MODEL": "gpt-5-mini-2025-08-07",
+    "DEFAULT_FROM": "Stackfuse <contact@stackfuse.pro>"
+  }
+}
