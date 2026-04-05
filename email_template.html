@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en" style="margin:0; padding:0;">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{{subject}}</title>
+    <meta name="x-preheader" content="{{preheader}}" />
+    <style>
+      /* Desktop styles (some clients support embedded CSS) */
+      @media only screen and (max-width: 600px) {
+        .container {
+          width: 100% !important;
+        }
+        .inner {
+          padding: 20px !important;
+        }
+        .stack-column,
+        .stack-column td {
+          display: block !important;
+          width: 100% !important;
+        }
+        .module-rail {
+          width: 100% !important;
+          border-right: none !important;
+          border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+        }
+        .hero-title {
+          font-size: 24px !important;
+        }
+        .hero-subtitle {
+          font-size: 16px !important;
+        }
+      }
+    </style>
+  </head>
+  <body
+    style="
+      margin: 0;
+      padding: 0;
+      background-color: #000000;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      color: #f3f3f3;
+    "
+  >
+    <!-- Preheader text: hidden preview in inbox -->
+    <div
+      style="
+        display: none;
+        font-size: 1px;
+        line-height: 1px;
+        max-height: 0;
+        max-width: 0;
+        opacity: 0;
+        overflow: hidden;
+        mso-hide: all;
+        visibility: hidden;
+      "
+    >
+      {{preheader}}
+    </div>
+
+    <table
+      role="presentation"
+      cellpadding="0"
+      cellspacing="0"
+      border="0"
+      width="100%"
+      style="
+        background-color: #000000;
+        background-image: radial-gradient(circle at top, rgba(52, 211, 153, 0.12), rgba(0, 0, 0, 0) 34%);
+        padding: 24px 0;
+      "
+    >
+      <tr>
+        <td align="center">
+          <table
+            role="presentation"
+            cellpadding="0"
+            cellspacing="0"
+            border="0"
+            width="100%"
+            class="container"
+            style="
+              max-width: 640px;
+              width: 100%;
+              border-radius: 24px;
+              background: linear-gradient(180deg, rgba(9, 9, 9, 0.98), rgba(3, 3, 3, 0.98));
+              border: 1px solid rgba(255, 255, 255, 0.1);
+              box-shadow: 0 24px 64px rgba(0, 0, 0, 0.55);
+              overflow: hidden;
+            "
+          >
+            <tr>
+              <td
+                style="
+                  height: 4px;
+                  background: linear-gradient(90deg, rgba(120, 255, 170, 0.75), rgba(59, 130, 246, 0.28), rgba(255, 255, 255, 0));
+                  font-size: 0;
+                  line-height: 0;
+                "
+              >
+                &nbsp;
+              </td>
+            </tr>
+            <!-- Header -->
+            <tr>
+              <td
+                style="
+                  padding: 18px 28px 14px 28px;
+                  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+                  background: rgba(255, 255, 255, 0.01);
+                "
+              >
+                <table width="100%" cellpadding="0" cellspacing="0" role="presentation">
+                  <tr>
+                    <td align="left">
+                      <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+                        <tr>
+                          <td style="width: 24px; padding-right: 9px; vertical-align: middle;">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="471.98 357.24 979.74 1097.98" width="20" height="20" style="display:block;" aria-hidden="true">
+                              <path fill="#f4f4f4" transform="scale(1.91211 1.91211)" d="M511.563 186.828C513.244 188.872 522.343 228.804 523.618 233.994L543.097 312.361L555.406 361.301C557.382 369.4 559.91 378.793 561.259 386.885C576.452 374.875 592.174 360.238 607.061 347.575L715.991 254.911C713.55 266.139 709.262 279.47 706.009 290.734L691.097 342.799C680.327 379.623 670.099 418.039 659.768 455.098C682.535 454.745 705.607 455.279 728.358 455.053C734.71 454.989 753.986 455.477 759.221 454.52C748.967 467.404 738.392 482.464 728.64 495.849L674.123 570.884C678.44 578.235 683.658 589.7 687.519 597.617C694.781 612.604 702.15 627.539 709.627 642.42C712.765 648.697 717.12 657.99 720.725 663.827C685.058 663.5 649.389 663.382 613.72 663.471C610.959 669.261 608.299 675.859 605.561 681.806L569.256 761.054C563.962 755.442 559.019 749.558 553.827 743.854L516.391 702.895C510.449 696.378 495.226 681.074 491.139 675.217C476.781 683.455 459.883 691.539 445.021 699.077L386.151 729.336L346.575 749.558C348.012 744.894 355.786 728.037 358.119 722.522L386.571 655.49L266.338 656.011C272.585 651.443 279.88 645.307 286.045 640.431L329.88 605.507C335.892 600.7 348.177 590.234 354.16 586.304L246.835 384.073C250.509 386.166 255.464 389.672 259.143 392.048L284.386 408.327L337.754 442.595C351.387 451.412 365.82 461.061 379.582 469.501C375.898 460.557 372.141 448.563 368.993 439.253C362.408 420.157 356.025 400.992 349.844 381.762L320.684 294.041C317.064 283.145 312.99 272.365 309.584 261.433C361.154 304.555 415.151 346.356 467.244 388.968C474.051 355.794 481.457 323.012 488.876 289.987C496.524 255.943 503.365 220.647 511.563 186.828Z"/>
+                              <path fill="#0f0f0f" transform="scale(1.91211 1.91211)" d="M593.826 434.939L594.107 435.257C594.16 438.017 591.266 453.204 590.75 457.748C587.873 483.09 583.162 508.979 580.27 534.235L678.032 495.407C659.26 516.658 640.667 542.02 621.739 562.603C634.16 580.933 646.181 599.531 657.793 618.383C637.9 617.305 617.956 614.701 598.058 613.446C594.611 613.228 591.096 612.944 587.69 612.386C578.345 639.722 569.707 668.01 560.948 695.565C549.557 679.278 536.712 663.07 524.691 647.224C518.618 639.219 511.458 630.672 505.823 622.469L499.169 625.652C475.227 636.594 449.385 647.183 426.053 658.191C431.376 649.366 438.304 639.492 444.147 630.788L477.345 581.802C467.43 569.148 457.417 556.355 447.308 543.861C440.46 535.398 433.003 527.195 426.107 518.691C431.58 521.102 444.306 524.546 450.55 526.537C466.922 531.757 483.456 536.695 499.676 542.441C499.209 529.327 497.531 512.947 496.564 499.495C495.534 485.148 494.628 466.557 492.782 452.692C508.119 471.593 527.12 497.511 541.168 517.528C551.638 501.553 562 485.508 572.256 469.394C579.755 457.723 586.901 447.031 593.826 434.939Z"/>
+                            </svg>
+                          </td>
+                          <td style="color:#f4f4f4; font-size:13px; font-weight:600; letter-spacing:0.03em;">
+                            Stackfuse
+                          </td>
+                        </tr>
+                      </table>
+                    </td>
+                    <td align="right" style="font-size:12px; color:#9a9a9a;">
+                      For {{company_name}}
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+
+            <!-- Intro -->
+            <tr>
+              <td style="padding: 0 28px 8px 28px;">
+                <p
+                  style="
+                    margin: 0;
+                    font-size: 14px;
+                    line-height: 1.75;
+                    color: #d2d2d2;
+                  "
+                >
+                  {{intro_paragraph}}
+                </p>
+              </td>
+            </tr>
+
+            <!-- Sections (simple body blocks) -->
+            <tr>
+              <td style="padding: 12px 28px 4px 28px;">
+                <div
+                  style="
+                    font-size: 14px;
+                    line-height: 1.7;
+                    color: #d2d2d2;
+                  "
+                >
+                  {{sections_html}}
+                </div>
+              </td>
+            </tr>
+
+            <tr>
+              <td style="padding: 8px 28px 4px 28px; font-size: 14px; line-height: 1.7; color: #d2d2d2;">
+                If useful, just reply and we can take it from there.
+              </td>
+            </tr>
+
+            <!-- Closing -->
+            <tr>
+              <td style="padding: 14px 28px 20px 28px;">
+                <p
+                  style="
+                    margin: 0 0 10px 0;
+                    font-size: 14px;
+                    line-height: 1.7;
+                    color: #d2d2d2;
+                  "
+                >
+                  {{closing_paragraph}}
+                </p>
+                <p
+                  style="
+                    margin: 0;
+                    font-size: 13px;
+                    line-height: 1.7;
+                    color: #9f9f9f;
+                  "
+                >
+                  {{sender_name}}<br />
+                  {{sender_role}}<br />
+                  Stackfuse
+                </p>
+              </td>
+            </tr>
+
+            <!-- Footer -->
+            <tr>
+              <td
+                style="
+                  padding: 14px 24px 18px 24px;
+                  border-top: 1px solid rgba(255, 255, 255, 0.08);
+                  background: rgba(255, 255, 255, 0.02);
+                "
+              >
+                <table width="100%" cellpadding="0" cellspacing="0" role="presentation">
+                  <tr>
+                    <td
+                      style="
+                        font-size: 11px;
+                        line-height: 1.6;
+                        color: #777777;
+                      "
+                    >
+                      {{footer_note}}
+                    </td>
+                    <td
+                      align="right"
+                      style="
+                        font-size: 11px;
+                        line-height: 1.6;
+                        color: #6c6c6c;
+                      "
+                    >
+                      <a
+                        href="https://stackfuse.pro/"
+                        style="
+                          color: #c8c8c8;
+                          text-decoration: none;
+                          letter-spacing: 0.1em;
+                          text-transform: uppercase;
+                          font-family: 'IBM Plex Mono', 'SFMono-Regular', Consolas, monospace;
+                        "
+                      >
+                        stackfuse.pro
+                      </a>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>

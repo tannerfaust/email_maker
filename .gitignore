@@ -1,0 +1,12 @@
+.env
+.env.*
+.venv/
+venv/
+__pycache__/
+*/__pycache__/
+*.pyc
+*.pyo
+gmail_token.json
+credentials.json
+.bot.lock
+*.lock
