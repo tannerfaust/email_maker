@@ -3,12 +3,14 @@ import assert from "node:assert/strict";
 
 import {
   buildEmailMessage,
+  buildPreservedEmail,
   buildPlainBody,
   extractAddresses,
+  extractHeuristicMetadata,
   fillTemplate,
+  inferCompanyNameFromText,
   looksLikeEmail,
-  normalizeStructuredEmail,
-  renderSectionsHtml,
+  parseBodyBlocks,
   timingSafeEqual,
 } from "../src/worker.mjs";
 
@@ -23,43 +25,42 @@ test("looksLikeEmail validates basic addresses", () => {
   assert.equal(looksLikeEmail("not-an-email"), false);
 });
 
-test("normalizeStructuredEmail applies defaults", () => {
-  const structured = normalizeStructuredEmail({
-    subject: "Test",
-    intro_paragraph: "Hi",
-    sections: [{ title: "One", body: "Body" }],
+test("inferCompanyNameFromText strips team suffix from greeting", () => {
+  assert.equal(inferCompanyNameFromText("Hi X-Hunter team,\n\nBody"), "X-Hunter");
+});
+
+test("extractHeuristicMetadata finds company and email", () => {
+  const metadata = extractHeuristicMetadata("TO: test@example.com\n\nHi X-Hunter team,\n\nBody");
+  assert.equal(metadata.company_name, "X-Hunter");
+  assert.equal(metadata.to_address, "test@example.com");
+});
+
+test("parseBodyBlocks preserves heading and following paragraph as a section", () => {
+  const blocks = parseBodyBlocks("Hi X-Hunter team,\n\nBuild a free prototype\n\nCreate product videos.");
+  assert.deepEqual(blocks[0], { type: "paragraph", text: "Hi X-Hunter team," });
+  assert.deepEqual(blocks[1], {
+    type: "section",
+    title: "Build a free prototype",
+    body: "Create product videos.",
   });
-
-  assert.equal(structured.subject, "Test");
-  assert.equal(structured.sender_name, "Stackfuse Team");
-  assert.equal(structured.sections.length, 1);
 });
 
-test("buildPlainBody includes sections when present", () => {
-  const body = buildPlainBody({
-    intro_paragraph: "Hi",
-    sections: [{ title: "One", body: "Body", metric_label: "ETA", metric_value: "2d" }],
-  });
-
-  assert.match(body, /Key points:/);
-  assert.match(body, /One: Body \(ETA: 2d\)/);
+test("buildPreservedEmail keeps the original body text unchanged", () => {
+  const rawText = "Hi X-Hunter team,\n\nParagraph one.\n\nBuild a free prototype\n\nCreate product videos.";
+  const structured = buildPreservedEmail(rawText, { company_name: "X-Hunter" });
+  assert.equal(structured.body_text, rawText);
+  assert.equal(structured.company_name, "X-Hunter");
+  assert.equal(structured.subject, "For X-Hunter");
 });
 
-test("renderSectionsHtml escapes content", () => {
-  const html = renderSectionsHtml([{ title: "<One>", body: "Body & more" }]);
-  assert.match(html, /&lt;One&gt;/);
-  assert.match(html, /Body &amp; more/);
+test("buildPlainBody returns the exact preserved body text", () => {
+  const rawText = "Hi X-Hunter team,\n\nParagraph one.";
+  const structured = buildPreservedEmail(rawText, { company_name: "X-Hunter" });
+  assert.equal(buildPlainBody(structured), rawText);
 });
 
-test("fillTemplate injects escaped structured content", () => {
-  const html = fillTemplate(
-    normalizeStructuredEmail({
-      subject: "Subject",
-      company_name: "ACME <Corp>",
-      intro_paragraph: "Hi\nthere",
-      closing_paragraph: "Thanks",
-    }),
-  );
+test("fillTemplate injects escaped company name and preserved body html", () => {
+  const html = fillTemplate(buildPreservedEmail("Hi\nthere", { company_name: "ACME <Corp>" }));
 
   assert.match(html, /ACME &lt;Corp&gt;/);
   assert.match(html, /Hi<br \/>there/);
@@ -67,11 +68,7 @@ test("fillTemplate injects escaped structured content", () => {
 
 test("buildEmailMessage emits an RFC822 multipart message", () => {
   const bytes = buildEmailMessage({
-    structured: normalizeStructuredEmail({
-      subject: "Hello",
-      intro_paragraph: "Hi",
-      closing_paragraph: "Thanks",
-    }),
+    structured: buildPreservedEmail("Hi", { company_name: "X-Hunter" }),
     htmlBody: "<p>Hi</p>",
     plainBody: "Hi",
     toAddress: "client@example.com",
@@ -80,7 +77,7 @@ test("buildEmailMessage emits an RFC822 multipart message", () => {
 
   const text = new TextDecoder().decode(bytes);
   assert.match(text, /Content-Type: multipart\/alternative;/);
-  assert.match(text, /Subject: Hello/);
+  assert.match(text, /Subject: For X-Hunter/);
   assert.match(text, /To: client@example.com/);
 });
 

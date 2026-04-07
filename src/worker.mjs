@@ -1,4 +1,4 @@
-const DEFAULT_OPENAI_MODEL = "gpt-5-mini-2025-08-07";
+const DEFAULT_OPENAI_MODEL = "gpt-5-nano";
 const DEFAULT_FROM = "Stackfuse <contact@stackfuse.pro>";
 const TELEGRAM_WEBHOOK_PATH = "/webhook/telegram";
 const TEMPLATE_HTML = `<!DOCTYPE html>
@@ -137,64 +137,8 @@ const TEMPLATE_HTML = `<!DOCTYPE html>
             </tr>
 
             <tr>
-              <td style="padding: 0 28px 8px 28px;">
-                <p
-                  style="
-                    margin: 0;
-                    font-size: 14px;
-                    line-height: 1.75;
-                    color: #d2d2d2;
-                  "
-                >
-                  {{intro_paragraph}}
-                </p>
-              </td>
-            </tr>
-
-            <tr>
-              <td style="padding: 12px 28px 4px 28px;">
-                <div
-                  style="
-                    font-size: 14px;
-                    line-height: 1.7;
-                    color: #d2d2d2;
-                  "
-                >
-                  {{sections_html}}
-                </div>
-              </td>
-            </tr>
-
-            <tr>
-              <td style="padding: 8px 28px 4px 28px; font-size: 14px; line-height: 1.7; color: #d2d2d2;">
-                If useful, just reply and we can take it from there.
-              </td>
-            </tr>
-
-            <tr>
-              <td style="padding: 14px 28px 20px 28px;">
-                <p
-                  style="
-                    margin: 0 0 10px 0;
-                    font-size: 14px;
-                    line-height: 1.7;
-                    color: #d2d2d2;
-                  "
-                >
-                  {{closing_paragraph}}
-                </p>
-                <p
-                  style="
-                    margin: 0;
-                    font-size: 13px;
-                    line-height: 1.7;
-                    color: #9f9f9f;
-                  "
-                >
-                  {{sender_name}}<br />
-                  {{sender_role}}<br />
-                  Stackfuse
-                </p>
+              <td style="padding: 0 28px 20px 28px;">
+                {{body_html}}
               </td>
             </tr>
 
@@ -253,7 +197,7 @@ const TEMPLATE_HTML = `<!DOCTYPE html>
 const START_MESSAGE =
   "Send me the rough text or notes for an email.\n\n" +
   "Include who it’s for (for example start with TO: client@company.com or say send to john@acme.com) and I’ll set the recipient in the .eml. " +
-  "This Cloudflare version returns a ready-to-send .eml file through Telegram.";
+  "I preserve your wording and only format it into the Stackfuse email style.";
 
 export default {
   async fetch(request, env = {}, ctx) {
@@ -335,7 +279,11 @@ async function processTelegramUpdate(update, env) {
 
     const { cleanedText, toAddress: explicitToAddress } = extractAddresses(messageText);
     const sourceText = cleanedText || messageText;
-    const structured = await callOpenAIForEmailStructuring(sourceText, env);
+    const metadata = await extractEmailMetadata(sourceText, env);
+    const structured = buildPreservedEmail(sourceText, {
+      ...metadata,
+      to_address: explicitToAddress || metadata.to_address,
+    });
     const toAddress = looksLikeEmail(explicitToAddress)
       ? explicitToAddress
       : looksLikeEmail(structured.to_address)
@@ -398,43 +346,36 @@ async function verifyTelegramWebhookSecret(request, env) {
   }
 }
 
-async function callOpenAIForEmailStructuring(rawText, env) {
+async function extractEmailMetadata(rawText, env) {
+  const heuristicMetadata = extractHeuristicMetadata(rawText);
+  if (heuristicMetadata.company_name) {
+    return heuristicMetadata;
+  }
+
   const apiKey = (env.OPENAI_API_KEY || "").trim();
   if (!apiKey) {
-    throw new Error("OPENAI_API_KEY is not configured");
+    return heuristicMetadata;
   }
 
   const systemPrompt =
-    "You are an expert email copy architect for Stackfuse, an AI automation agency " +
-    "(https://stackfuse.pro/). Your job is to turn rough email notes into structured content " +
-    "that will be inserted into a fixed HTML email template.\n\n" +
-    "Below is the exact HTML template used for the email. It contains placeholders in double " +
-    "curly braces (for example {{subject}}, {{intro_paragraph}}). You must produce a JSON object that, when " +
-    "these placeholders are filled and sections are rendered as HTML blocks, results in a complete, client-ready email.\n\n" +
-    "Placeholders you must fill via JSON:\n" +
-    "- subject, preheader, company_name, tagline, hero_title, hero_subtitle\n" +
-    "- intro_paragraph\n" +
-    "- sections: array of { title, body, metric_label (optional), metric_value (optional) }\n" +
-    "- cta_text, cta_url, closing_paragraph, sender_name, sender_role, footer_note\n" +
-    "- to_address: if the user specifies a recipient email anywhere in the message, extract it; otherwise null.\n\n" +
+    "You extract lightweight metadata from a drafted outreach email. " +
+    "Do not rewrite, improve, shorten, expand, or paraphrase the email body.\n\n" +
+    "Return only JSON with these fields:\n" +
+    "- company_name: the recipient company or team name for the top-right corner, or null\n" +
+    "- to_address: the recipient email if one is explicitly present in the text, or null\n\n" +
     "Rules:\n" +
-    "- Use plain text only in JSON string values.\n" +
-    "- Tone: practical, concrete B2B outreach.\n" +
-    "- Treat the user's text as the source of truth. Preserve structure, voice, and key sentences.\n" +
-    "- Preserve at least 85-90% of the original wording unless a small cleanup materially improves readability.\n" +
-    "- Allowed edits: grammar fixes, typo fixes, paragraph splitting, light repetition trimming.\n" +
-    "- intro_paragraph should usually contain the greeting and the first one or two paragraphs.\n" +
-    "- sections should be empty by default. Only use sections if the user clearly gave a list that should remain a list.\n" +
-    "- Do not add new claims, buzzwords, fluff, or invented details.\n" +
-    "- Do not add labels like To:, Brief:, Next step:, or similar markers.\n" +
+    "- Never return edited email copy.\n" +
+    "- If the greeting says 'Hi X-Hunter team,' then company_name should be 'X-Hunter'.\n" +
+    "- Strip suffixes like 'team' when that clearly refers to the company.\n" +
+    "- If uncertain, return null for that field.\n" +
     "- Output valid JSON only.\n\n" +
-    "=== HTML TEMPLATE ===\n" +
-    TEMPLATE_HTML +
-    "\n=== END HTML TEMPLATE ===";
+    "Existing heuristic guess:\n" +
+    JSON.stringify(heuristicMetadata) +
+    "\n\n" +
+    "Email text follows.";
 
   const userPrompt =
-    "Here is the raw email text or notes from the user. Structure it into the template " +
-    "placeholders and return one JSON object with the schema described above.\n\n" +
+    "Extract metadata from this email draft.\n\n" +
     "=== USER EMAIL INPUT ===\n" +
     rawText.trim() +
     "\n=== END USER INPUT ===";
@@ -449,7 +390,7 @@ async function callOpenAIForEmailStructuring(rawText, env) {
       model: getOpenAIModel(env),
       store: false,
       response_format: { type: "json_object" },
-      max_completion_tokens: 8192,
+      max_completion_tokens: 120,
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt },
@@ -469,39 +410,28 @@ async function callOpenAIForEmailStructuring(rawText, env) {
     throw new Error("OpenAI returned empty content");
   }
 
-  return normalizeStructuredEmail(JSON.parse(content));
+  return mergeMetadata(heuristicMetadata, normalizeEmailMetadata(JSON.parse(content)));
 }
 
-function normalizeStructuredEmail(data) {
-  const sections = Array.isArray(data?.sections)
-    ? data.sections
-        .map((item) => ({
-          title: safeString(item?.title),
-          body: safeString(item?.body),
-          metric_label: optionalString(item?.metric_label),
-          metric_value: optionalString(item?.metric_value),
-        }))
-        .filter((item) => item.title || item.body)
-    : [];
+function normalizeEmailMetadata(data) {
+  return {
+    company_name: optionalString(cleanCompanyName(data?.company_name)),
+    to_address: optionalString(data?.to_address),
+  };
+}
+
+function buildPreservedEmail(rawText, metadata = {}) {
+  const bodyText = rawText.trim();
+  const companyName = metadata.company_name || inferCompanyNameFromText(bodyText) || "Your Team";
 
   return {
-    subject: safeString(data?.subject) || "Stackfuse update",
-    preheader: safeString(data?.preheader),
-    company_name: safeString(data?.company_name) || "Your Team",
-    tagline: safeString(data?.tagline) || "Production AI Engineering",
-    hero_title: safeString(data?.hero_title),
-    hero_subtitle: safeString(data?.hero_subtitle),
-    intro_paragraph: safeString(data?.intro_paragraph),
-    sections,
-    cta_text: safeString(data?.cta_text) || "Choose Your Path",
-    cta_url: safeString(data?.cta_url) || "https://stackfuse.pro/start",
-    closing_paragraph: safeString(data?.closing_paragraph),
-    sender_name: safeString(data?.sender_name) || "Stackfuse Team",
-    sender_role: safeString(data?.sender_role) || "Production AI Engineering",
-    footer_note:
-      safeString(data?.footer_note) ||
-      "You’re receiving this because you asked about AI systems, automation, or workflow design with Stackfuse.",
-    to_address: optionalString(data?.to_address),
+    subject: deriveSubject(companyName),
+    preheader: buildPreheader(bodyText),
+    company_name: companyName,
+    body_text: bodyText,
+    body_html: renderBodyHtml(bodyText),
+    footer_note: "",
+    to_address: optionalString(metadata.to_address),
   };
 }
 
@@ -510,16 +440,7 @@ function fillTemplate(structured) {
     "{{subject}}": escapeHtml(structured.subject),
     "{{preheader}}": escapeHtml(structured.preheader),
     "{{company_name}}": escapeHtml(structured.company_name),
-    "{{tagline}}": escapeHtml(structured.tagline),
-    "{{hero_title}}": escapeHtml(structured.hero_title),
-    "{{hero_subtitle}}": escapeHtml(structured.hero_subtitle),
-    "{{intro_paragraph}}": renderMultilineText(structured.intro_paragraph),
-    "{{sections_html}}": renderSectionsHtml(structured.sections),
-    "{{cta_text}}": escapeHtml(structured.cta_text),
-    "{{cta_url}}": escapeHtml(structured.cta_url),
-    "{{closing_paragraph}}": renderMultilineText(structured.closing_paragraph),
-    "{{sender_name}}": escapeHtml(structured.sender_name),
-    "{{sender_role}}": escapeHtml(structured.sender_role),
+    "{{body_html}}": structured.body_html,
     "{{footer_note}}": renderMultilineText(structured.footer_note),
   };
 
@@ -530,22 +451,21 @@ function fillTemplate(structured) {
   return html;
 }
 
-function renderSectionsHtml(sections) {
-  if (!sections.length) {
-    return "";
-  }
-
-  return sections
-    .map((section) => {
-      const metricSuffix =
-        section.metric_label && section.metric_value
-          ? ` (${escapeHtml(section.metric_label)}: ${escapeHtml(section.metric_value)})`
-          : "";
+function renderBodyHtml(bodyText) {
+  return parseBodyBlocks(bodyText)
+    .map((block) => {
+      if (block.type === "section") {
+        return (
+          '<p style="margin: 0 0 18px 0; font-size: 14px; line-height: 1.7; color: #d2d2d2;">' +
+          `<strong style="color: #f5f5f5;">${escapeHtml(block.title)}</strong><br />` +
+          `${renderMultilineText(block.body)}` +
+          "</p>"
+        );
+      }
 
       return (
-        '<p style="margin: 0 0 14px 0; font-size: 14px; line-height: 1.7; color: #d2d2d2;">' +
-        `<strong style="color: #f5f5f5;">${escapeHtml(section.title)}</strong><br />` +
-        `${renderMultilineText(section.body)}${metricSuffix}` +
+        '<p style="margin: 0 0 18px 0; font-size: 14px; line-height: 1.75; color: #d2d2d2;">' +
+        `${renderMultilineText(block.text)}` +
         "</p>"
       );
     })
@@ -557,18 +477,151 @@ function renderMultilineText(value) {
 }
 
 function buildPlainBody(structured) {
-  let body = structured.intro_paragraph.trim();
-  if (structured.sections.length) {
-    const sectionLines = structured.sections.map((section) => {
-      let line = `- ${section.title}: ${section.body}`;
-      if (section.metric_label && section.metric_value) {
-        line += ` (${section.metric_label}: ${section.metric_value})`;
-      }
-      return line;
+  return structured.body_text.trim();
+}
+
+function parseBodyBlocks(bodyText) {
+  const paragraphs = splitParagraphs(bodyText);
+  const blocks = [];
+
+  for (let index = 0; index < paragraphs.length; index += 1) {
+    const current = paragraphs[index];
+    const next = paragraphs[index + 1];
+
+    if (isSectionHeading(current, next)) {
+      blocks.push({
+        type: "section",
+        title: current,
+        body: next,
+      });
+      index += 1;
+      continue;
+    }
+
+    blocks.push({
+      type: "paragraph",
+      text: current,
     });
-    body += `\n\nKey points:\n${sectionLines.join("\n")}`;
   }
-  return body.trim();
+
+  return blocks;
+}
+
+function splitParagraphs(text) {
+  return text
+    .replace(/\r\n/g, "\n")
+    .split(/\n\s*\n/)
+    .map((paragraph) => paragraph.trim())
+    .filter(Boolean);
+}
+
+function isSectionHeading(current, next) {
+  if (!current || !next) {
+    return false;
+  }
+
+  if (current.includes("\n")) {
+    return false;
+  }
+
+  if (looksLikeGreeting(current)) {
+    return false;
+  }
+
+  if (/[.!?:]$/.test(current)) {
+    return false;
+  }
+
+  if (current.length > 80) {
+    return false;
+  }
+
+  if (current.split(/\s+/).length > 10) {
+    return false;
+  }
+
+  return next.length >= current.length;
+}
+
+function extractHeuristicMetadata(rawText) {
+  const detectedAddress = extractFirstEmailAddress(rawText);
+  const companyName =
+    inferCompanyNameFromText(rawText) ||
+    inferCompanyNameFromAddress(detectedAddress) ||
+    null;
+
+  return {
+    company_name: optionalString(companyName),
+    to_address: optionalString(detectedAddress),
+  };
+}
+
+function inferCompanyNameFromText(rawText) {
+  const firstNonEmptyLine = rawText
+    .replace(/\r\n/g, "\n")
+    .split("\n")
+    .map((line) => line.trim())
+    .find((line) => line && !line.toUpperCase().startsWith("TO:"));
+
+  if (!firstNonEmptyLine) {
+    return null;
+  }
+
+  const greetingMatch = firstNonEmptyLine.match(/^(?:hi|hello|hey|dear)\s+(.+?)(?:,|$)/i);
+  if (!greetingMatch) {
+    return null;
+  }
+
+  return cleanCompanyName(greetingMatch[1]);
+}
+
+function inferCompanyNameFromAddress(address) {
+  if (!looksLikeEmail(address)) {
+    return null;
+  }
+
+  const domain = address.split("@")[1] || "";
+  const host = domain.split(".")[0] || "";
+  if (!host) {
+    return null;
+  }
+
+  return cleanCompanyName(host.replace(/[-_]+/g, " "));
+}
+
+function cleanCompanyName(value) {
+  const normalized = safeString(value)
+    .replace(/^(the)\s+/i, "")
+    .replace(/\b(team|folks|crew|company)\b$/i, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+
+  return normalized || null;
+}
+
+function extractFirstEmailAddress(rawText) {
+  const match = rawText.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i);
+  return match ? match[0] : null;
+}
+
+function deriveSubject(companyName) {
+  return companyName && companyName !== "Your Team" ? `For ${companyName}` : "Stackfuse draft";
+}
+
+function buildPreheader(bodyText) {
+  const compact = bodyText.replace(/\s+/g, " ").trim();
+  return compact.slice(0, 140);
+}
+
+function mergeMetadata(primary, secondary) {
+  return {
+    company_name: secondary.company_name || primary.company_name || null,
+    to_address: secondary.to_address || primary.to_address || null,
+  };
+}
+
+function looksLikeGreeting(value) {
+  return /^(?:hi|hello|hey|dear)\b/i.test(value.trim());
 }
 
 function buildEmailMessage({ structured, htmlBody, plainBody, toAddress, fromAddress }) {
@@ -762,13 +815,17 @@ function jsonResponse(payload, status = 200) {
 export {
   TELEGRAM_WEBHOOK_PATH,
   buildEmailMessage,
+  buildPreservedEmail,
   buildPlainBody,
   escapeHtml,
   extractAddresses,
+  extractHeuristicMetadata,
   fillTemplate,
   formatRfc2822Date,
+  inferCompanyNameFromText,
   looksLikeEmail,
-  normalizeStructuredEmail,
-  renderSectionsHtml,
+  normalizeEmailMetadata,
+  parseBodyBlocks,
+  renderBodyHtml,
   timingSafeEqual,
 };

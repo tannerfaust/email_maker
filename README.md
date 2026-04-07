@@ -7,9 +7,9 @@ This project is now a webhook-driven Telegram bot for Cloudflare Workers.
 The original bot had one core job:
 
 1. Accept rough outbound-email notes in Telegram.
-2. Extract `TO:` if present, and otherwise let OpenAI infer a recipient email when the text includes one.
-3. Ask OpenAI to reshape the notes into a structured JSON object that fits the Stackfuse email template.
-4. Render that JSON into a fixed dark HTML template.
+2. Preserve the body text as-is instead of rewriting it.
+3. Detect lightweight metadata like `TO:` and company name.
+4. Render the original text into the fixed dark Stackfuse HTML style.
 5. Build a multipart `.eml` draft with both plain-text and HTML parts.
 6. Send that `.eml` back to the Telegram user as `stackfuse-email.eml`.
 
@@ -36,7 +36,7 @@ The Cloudflare rewrite preserves that flow, but changes the runtime model:
 Supported Telegram interactions:
 
 - `/start`: explains how to use the bot.
-- Plain text message: generates and returns an `.eml` draft.
+- Plain text message: preserves the original wording, formats it into the Stackfuse email layout, and returns an `.eml` draft.
 
 Not carried over:
 
@@ -54,6 +54,12 @@ Optional plain-text vars:
 
 - `OPENAI_MODEL`
 - `DEFAULT_FROM`
+
+Current default model:
+
+- `gpt-5-nano`
+
+The Worker no longer uses the model to rewrite email content. It only uses the model as a cheap fallback for metadata extraction when local heuristics are not enough.
 
 For local development, copy [.dev.vars.example](/Users/mediaalamedia/stackfuse-email-maker/.dev.vars.example) to `.dev.vars`.
 
