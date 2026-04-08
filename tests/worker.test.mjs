@@ -11,6 +11,7 @@ import {
   inferCompanyNameFromText,
   looksLikeEmail,
   parseBodyBlocks,
+  renderBodyHtml,
   timingSafeEqual,
 } from "../src/worker.mjs";
 
@@ -44,11 +45,19 @@ test("extractHeuristicMetadata infers company from a domain mention in the body"
 
 test("parseBodyBlocks preserves heading and following paragraph as a section", () => {
   const blocks = parseBodyBlocks("Hi X-Hunter team,\n\nBuild a free prototype\n\nCreate product videos.");
-  assert.deepEqual(blocks[0], { type: "paragraph", text: "Hi X-Hunter team," });
+  assert.deepEqual(blocks[0], { type: "greeting", text: "Hi X-Hunter team," });
   assert.deepEqual(blocks[1], {
     type: "section",
     title: "Build a free prototype",
     body: "Create product videos.",
+  });
+});
+
+test("parseBodyBlocks detects a closing signature block", () => {
+  const blocks = parseBodyBlocks("Hello team,\n\nBody paragraph.\n\nBest,\nAlex Rivera\nProduct & AI Strategist\nStackfuse");
+  assert.deepEqual(blocks[2], {
+    type: "signature",
+    lines: ["Best,", "Alex Rivera", "Product & AI Strategist", "Stackfuse"],
   });
 });
 
@@ -71,6 +80,16 @@ test("fillTemplate injects escaped company name and preserved body html", () => 
 
   assert.match(html, /ACME &lt;Corp&gt;/);
   assert.match(html, /Hi<br \/>there/);
+});
+
+test("renderBodyHtml adds light structure for greeting, sections, and signature", () => {
+  const html = renderBodyHtml(
+    "Hello team,\n\nBuild a free prototype\n\nCreate product videos.\n\nBest,\nAlex Rivera\nStackfuse",
+  );
+
+  assert.match(html, /border-bottom: 1px solid rgba\(255, 255, 255, 0.08\)/);
+  assert.match(html, /border-top: 1px solid rgba\(255, 255, 255, 0.06\)/);
+  assert.match(html, /font-weight: 700;[^>]*>Alex Rivera<\/p>/);
 });
 
 test("buildEmailMessage emits an RFC822 multipart message", () => {

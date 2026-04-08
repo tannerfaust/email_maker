@@ -459,20 +459,38 @@ function fillTemplate(structured) {
 }
 
 function renderBodyHtml(bodyText) {
-  return parseBodyBlocks(bodyText)
-    .map((block) => {
-      if (block.type === "section") {
+  const blocks = parseBodyBlocks(bodyText);
+
+  return blocks
+    .map((block, index) => {
+      if (block.type === "greeting") {
         return (
-          '<p style="margin: 0 0 18px 0; font-size: 14px; line-height: 1.7; color: #d2d2d2;">' +
-          `<strong style="color: #f5f5f5;">${escapeHtml(block.title)}</strong><br />` +
-          `${renderMultilineText(block.body)}` +
-          "</p>"
+          '<div style="margin: 0 0 22px 0; padding: 0 0 14px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.08);">' +
+          '<p style="margin: 0; font-size: 14px; line-height: 1.75; color: #f0f0f0; font-weight: 500;">' +
+          `${renderMultilineText(block.text)}` +
+          "</p>" +
+          "</div>"
         );
       }
 
+      if (block.type === "section") {
+        return (
+          '<div style="margin: 0 0 18px 0; padding: 14px 0 0 0; border-top: 1px solid rgba(255, 255, 255, 0.06);">' +
+          `<p style="margin: 0 0 10px 0; font-size: 13px; line-height: 1.5; color: #f5f5f5; font-weight: 700; letter-spacing: 0.01em;">${escapeHtml(block.title)}</p>` +
+          '<p style="margin: 0; font-size: 14px; line-height: 1.75; color: #d2d2d2;">' +
+          `${renderMultilineText(block.body)}` +
+          "</p>" +
+          "</div>"
+        );
+      }
+
+      if (block.type === "signature") {
+        return renderSignatureBlock(block);
+      }
+
       return (
-        '<p style="margin: 0 0 18px 0; font-size: 14px; line-height: 1.75; color: #d2d2d2;">' +
-        `${renderMultilineText(block.text)}` +
+        `<p style="margin: 0 0 ${index === blocks.length - 1 ? "0" : "18"}px 0; font-size: 14px; line-height: 1.75; color: #d2d2d2;">` +
+        `${renderParagraphText(block.text)}` +
         "</p>"
       );
     })
@@ -481,6 +499,49 @@ function renderBodyHtml(bodyText) {
 
 function renderMultilineText(value) {
   return escapeHtml(value).replaceAll("\n", "<br />");
+}
+
+function renderParagraphText(value) {
+  const normalized = safeString(value);
+  const emphasisMatch = normalized.match(/^([^:\n]{3,72}:)(\s+.+)$/);
+  if (!emphasisMatch) {
+    return renderMultilineText(normalized);
+  }
+
+  return (
+    `<strong style="color: #ededed;">${escapeHtml(emphasisMatch[1])}</strong>` +
+    ` ${renderMultilineText(emphasisMatch[2].trimStart())}`
+  );
+}
+
+function renderSignatureBlock(block) {
+  const lines = block.lines.map((line) => safeString(line)).filter(Boolean);
+  const signoffLine = lines[0] || "";
+  const nameLine = lines[1] || "";
+  const metaLines = lines.slice(2);
+
+  const parts = [];
+  if (signoffLine) {
+    parts.push(
+      `<p style="margin: 0 0 10px 0; font-size: 14px; line-height: 1.7; color: #d8d8d8;">${escapeHtml(signoffLine)}</p>`,
+    );
+  }
+  if (nameLine) {
+    parts.push(
+      `<p style="margin: 0 0 6px 0; font-size: 14px; line-height: 1.5; color: #f4f4f4; font-weight: 700;">${escapeHtml(nameLine)}</p>`,
+    );
+  }
+  if (metaLines.length > 0) {
+    parts.push(
+      `<p style="margin: 0; font-size: 13px; line-height: 1.65; color: #9a9a9a;">${metaLines.map(escapeHtml).join("<br />")}</p>`,
+    );
+  }
+
+  return (
+    '<div style="margin: 26px 0 0 0; padding: 16px 0 0 0; border-top: 1px solid rgba(255, 255, 255, 0.08);">' +
+    parts.join("") +
+    "</div>"
+  );
 }
 
 function buildPlainBody(structured) {
@@ -494,6 +555,22 @@ function parseBodyBlocks(bodyText) {
   for (let index = 0; index < paragraphs.length; index += 1) {
     const current = paragraphs[index];
     const next = paragraphs[index + 1];
+
+    if (index === 0 && looksLikeGreeting(current)) {
+      blocks.push({
+        type: "greeting",
+        text: current,
+      });
+      continue;
+    }
+
+    if (isSignatureParagraph(current, index, paragraphs)) {
+      blocks.push({
+        type: "signature",
+        lines: current.replace(/\r\n/g, "\n").split("\n"),
+      });
+      continue;
+    }
 
     if (isSectionHeading(current, next)) {
       blocks.push({
@@ -548,6 +625,24 @@ function isSectionHeading(current, next) {
   }
 
   return next.length >= current.length;
+}
+
+function isSignatureParagraph(current, index, paragraphs) {
+  if (index < paragraphs.length - 2) {
+    return false;
+  }
+
+  const lines = current
+    .replace(/\r\n/g, "\n")
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  if (lines.length < 2 || lines.length > 5) {
+    return false;
+  }
+
+  return /^(?:best|thanks|thank you|regards|cheers|sincerely)[,!]?$/i.test(lines[0]);
 }
 
 function extractHeuristicMetadata(rawText) {
