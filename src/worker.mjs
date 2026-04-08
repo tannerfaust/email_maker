@@ -284,11 +284,7 @@ async function processTelegramUpdate(update, env) {
       ...metadata,
       to_address: explicitToAddress || metadata.to_address,
     });
-    const toAddress = looksLikeEmail(explicitToAddress)
-      ? explicitToAddress
-      : looksLikeEmail(structured.to_address)
-        ? structured.to_address
-        : "recipient@example.com";
+    const toAddress = resolveToAddress(explicitToAddress, structured.to_address);
 
     const htmlBody = fillTemplate(structured);
     const plainBody = buildPlainBody(structured);
@@ -822,6 +818,18 @@ function mergeMetadata(primary, secondary) {
   };
 }
 
+function resolveToAddress(explicitToAddress, structuredToAddress) {
+  if (looksLikeEmail(explicitToAddress)) {
+    return explicitToAddress;
+  }
+
+  if (looksLikeEmail(structuredToAddress)) {
+    return structuredToAddress;
+  }
+
+  return "recipient@example.com";
+}
+
 function looksLikeGreeting(value) {
   return /^(?:hi|hello|hey|dear)\b/i.test(value.trim());
 }
@@ -1029,5 +1037,6 @@ export {
   normalizeEmailMetadata,
   parseBodyBlocks,
   renderBodyHtml,
+  resolveToAddress,
   timingSafeEqual,
 };

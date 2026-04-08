@@ -12,6 +12,7 @@ import {
   looksLikeEmail,
   parseBodyBlocks,
   renderBodyHtml,
+  resolveToAddress,
   timingSafeEqual,
 } from "../src/worker.mjs";
 
@@ -67,6 +68,12 @@ test("buildPreservedEmail keeps the original body text unchanged", () => {
   assert.equal(structured.body_text, rawText);
   assert.equal(structured.company_name, "X-Hunter");
   assert.equal(structured.subject, "For X-Hunter");
+});
+
+test("resolveToAddress prefers explicit valid email, then structured fallback", () => {
+  assert.equal(resolveToAddress("client@example.com", "other@example.com"), "client@example.com");
+  assert.equal(resolveToAddress(null, "other@example.com"), "other@example.com");
+  assert.equal(resolveToAddress("not-an-email", null), "recipient@example.com");
 });
 
 test("buildPlainBody returns the exact preserved body text", () => {
