@@ -151,7 +151,19 @@ test("renderBodyHtml turns stacked action lines into light bullets and bolds gre
   assert.match(html, /<ul style=/);
   assert.match(html, /<li[^>]*>Build a free prototype with product videos and 360° views<\/li>/);
   assert.match(html, /Even a rough prototype makes it easy to see the impact\./);
-  assert.match(html, /—Alex<\/p>/);
+  assert.match(html, /Alex Rivera<\/p>/);
+  assert.match(html, /Product &amp; AI Strategist<br \/>Stackfuse/);
+});
+
+test("renderBodyHtml expands Alex signatures but leaves other names alone", () => {
+  const alexHtml = renderBodyHtml("Hello team,\n\nBody.\n\nBest,\nAlex");
+  const otherHtml = renderBodyHtml("Hello team,\n\nBody.\n\nBest,\nMatthew");
+
+  assert.match(alexHtml, /Best,<\/p>/);
+  assert.match(alexHtml, /Alex Rivera<\/p>/);
+  assert.match(alexHtml, /Product &amp; AI Strategist<br \/>Stackfuse/);
+  assert.match(otherHtml, /Matthew<\/p>/);
+  assert.doesNotMatch(otherHtml, /Alex Rivera/);
 });
 
 test("buildEmailMessage emits an RFC822 multipart message", () => {

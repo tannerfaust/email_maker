@@ -1,6 +1,7 @@
 const DEFAULT_OPENAI_MODEL = "gpt-5-nano";
 const DEFAULT_FROM = "Stackfuse <contact@stackfuse.pro>";
 const TELEGRAM_WEBHOOK_PATH = "/webhook/telegram";
+const DEFAULT_ALEX_SIGNATURE = ["Alex Rivera", "Product & AI Strategist", "Stackfuse"];
 const TEMPLATE_HTML = `<!DOCTYPE html>
 <html lang="en" style="margin:0; padding:0;">
   <head>
@@ -523,7 +524,7 @@ function renderParagraphText(value) {
 }
 
 function renderSignatureBlock(block) {
-  const lines = block.lines.map((line) => safeString(line)).filter(Boolean);
+  const lines = normalizeSignatureLines(block.lines.map((line) => safeString(line)).filter(Boolean));
   if (lines.length === 1 && isDashSignatureLine(lines[0])) {
     return (
       '<div style="margin: 26px 0 0 0; padding: 16px 0 0 0; border-top: 1px solid rgba(255, 255, 255, 0.08);">' +
@@ -532,9 +533,11 @@ function renderSignatureBlock(block) {
     );
   }
 
-  const signoffLine = lines[0] || "";
-  const nameLine = lines[1] || "";
-  const metaLines = lines.slice(2);
+  const hasSignoff = isSignatureStarterLine(lines[0]);
+  const signoffLine = hasSignoff ? lines[0] : "";
+  const nameIndex = hasSignoff ? 1 : 0;
+  const nameLine = lines[nameIndex] || "";
+  const metaLines = lines.slice(nameIndex + 1);
 
   const parts = [];
   if (signoffLine) {
@@ -558,6 +561,27 @@ function renderSignatureBlock(block) {
     parts.join("") +
     "</div>"
   );
+}
+
+function normalizeSignatureLines(lines) {
+  const cleaned = lines.map((line) => safeString(line)).filter(Boolean);
+  if (cleaned.length === 0) {
+    return cleaned;
+  }
+
+  const hasSignoff = isSignatureStarterLine(cleaned[0]);
+  const signoff = hasSignoff ? cleaned[0] : null;
+  const nameIndex = hasSignoff ? 1 : 0;
+  const nameLine = cleaned[nameIndex] || "";
+  const metaLines = cleaned.slice(nameIndex + 1);
+
+  if (!isAlexSignatureName(nameLine)) {
+    return cleaned;
+  }
+
+  const preservedMetaLines = metaLines.filter((line) => !isDefaultAlexSignatureMetaLine(line));
+  const normalized = signoff ? [signoff, ...DEFAULT_ALEX_SIGNATURE] : [...DEFAULT_ALEX_SIGNATURE];
+  return [...normalized, ...preservedMetaLines];
 }
 
 function renderListBlock(list, withBottomSpacing = true) {
@@ -764,6 +788,16 @@ function isSignatureStarterLine(line) {
 
 function isDashSignatureLine(line) {
   return /^[—-]\s*[A-Z][A-Za-z .'-]{1,40}$/.test(safeString(line));
+}
+
+function isAlexSignatureName(line) {
+  const normalized = safeString(line).replace(/^[—-]\s*/, "").toLowerCase();
+  return normalized === "alex" || normalized === "alex rivera";
+}
+
+function isDefaultAlexSignatureMetaLine(line) {
+  const normalized = safeString(line).toLowerCase();
+  return DEFAULT_ALEX_SIGNATURE.slice(1).some((item) => item.toLowerCase() === normalized);
 }
 
 function isSectionHeading(current, next) {
