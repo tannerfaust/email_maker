@@ -62,6 +62,30 @@ test("parseBodyBlocks detects a closing signature block", () => {
   });
 });
 
+test("parseBodyBlocks separates greeting and list-style lines from telegram-style input", () => {
+  const blocks = parseBodyBlocks(
+    "Hi Standert team,\nLooking at your site, I noticed a clear opportunity.\nImagine AI-generated videos.\n\nTo make it concrete, we can:\n\nBuild a free prototype with product videos and 360° views\nSet up an AI assistant tailored to your catalog\nRun a free automation audit to streamline operations\nEven a rough prototype makes it easy to see the impact.\n—Alex",
+  );
+
+  assert.deepEqual(blocks[0], { type: "greeting", text: "Hi Standert team," });
+  assert.deepEqual(blocks[1], { type: "paragraph", text: "Looking at your site, I noticed a clear opportunity." });
+  assert.deepEqual(blocks[2], { type: "paragraph", text: "Imagine AI-generated videos." });
+  assert.deepEqual(blocks[3], { type: "paragraph", text: "To make it concrete, we can:" });
+  assert.deepEqual(blocks[4], {
+    type: "paragraph",
+    text:
+      "Build a free prototype with product videos and 360° views\nSet up an AI assistant tailored to your catalog\nRun a free automation audit to streamline operations",
+  });
+  assert.deepEqual(blocks[5], {
+    type: "paragraph",
+    text: "Even a rough prototype makes it easy to see the impact.",
+  });
+  assert.deepEqual(blocks[6], {
+    type: "signature",
+    lines: ["—Alex"],
+  });
+});
+
 test("buildPreservedEmail keeps the original body text unchanged", () => {
   const rawText = "Hi X-Hunter team,\n\nParagraph one.\n\nBuild a free prototype\n\nCreate product videos.";
   const structured = buildPreservedEmail(rawText, { company_name: "X-Hunter" });
@@ -83,10 +107,10 @@ test("buildPlainBody returns the exact preserved body text", () => {
 });
 
 test("fillTemplate injects escaped company name and preserved body html", () => {
-  const html = fillTemplate(buildPreservedEmail("Hi\nthere", { company_name: "ACME <Corp>" }));
+  const html = fillTemplate(buildPreservedEmail("Line one\nline two", { company_name: "ACME <Corp>" }));
 
   assert.match(html, /ACME &lt;Corp&gt;/);
-  assert.match(html, /Hi<br \/>there/);
+  assert.match(html, /Line one<br \/>line two/);
 });
 
 test("renderBodyHtml adds light structure for greeting, sections, and signature", () => {
@@ -115,6 +139,19 @@ test("renderBodyHtml turns numbered section bodies into an ordered list", () => 
   assert.match(html, /<ol style=/);
   assert.match(html, /<li[^>]*>Review the prototype<\/li>/);
   assert.match(html, /<p style=\"margin: 0 0 10px 0; font-size: 13px;/);
+});
+
+test("renderBodyHtml turns stacked action lines into light bullets and bolds greeting", () => {
+  const html = renderBodyHtml(
+    "Hi Standert team,\nLooking at your site, I noticed a clear opportunity.\n\nTo make it concrete, we can:\n\nBuild a free prototype with product videos and 360° views\nSet up an AI assistant tailored to your catalog\nRun a free automation audit to streamline operations\nEven a rough prototype makes it easy to see the impact.\n—Alex",
+  );
+
+  assert.match(html, /font-size: 15px; line-height: 1.75; color: #f6f6f6; font-weight: 700/);
+  assert.match(html, /<strong style="color: #ededed;">To make it concrete, we can:<\/strong>/);
+  assert.match(html, /<ul style=/);
+  assert.match(html, /<li[^>]*>Build a free prototype with product videos and 360° views<\/li>/);
+  assert.match(html, /Even a rough prototype makes it easy to see the impact\./);
+  assert.match(html, /—Alex<\/p>/);
 });
 
 test("buildEmailMessage emits an RFC822 multipart message", () => {

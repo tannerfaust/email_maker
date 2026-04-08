@@ -462,7 +462,7 @@ function renderBodyHtml(bodyText) {
       if (block.type === "greeting") {
         return (
           '<div style="margin: 0 0 22px 0; padding: 0 0 14px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.08);">' +
-          '<p style="margin: 0; font-size: 14px; line-height: 1.75; color: #f0f0f0; font-weight: 500;">' +
+          '<p style="margin: 0; font-size: 15px; line-height: 1.75; color: #f6f6f6; font-weight: 700;">' +
           `${renderMultilineText(block.text)}` +
           "</p>" +
           "</div>"
@@ -507,6 +507,10 @@ function renderMultilineText(value) {
 
 function renderParagraphText(value) {
   const normalized = safeString(value);
+  if (!normalized.includes("\n") && normalized.length <= 96 && normalized.endsWith(":")) {
+    return `<strong style="color: #ededed;">${escapeHtml(normalized)}</strong>`;
+  }
+
   const emphasisMatch = normalized.match(/^([^:\n]{3,72}:)(\s+.+)$/);
   if (!emphasisMatch) {
     return renderMultilineText(normalized);
@@ -520,6 +524,14 @@ function renderParagraphText(value) {
 
 function renderSignatureBlock(block) {
   const lines = block.lines.map((line) => safeString(line)).filter(Boolean);
+  if (lines.length === 1 && isDashSignatureLine(lines[0])) {
+    return (
+      '<div style="margin: 26px 0 0 0; padding: 16px 0 0 0; border-top: 1px solid rgba(255, 255, 255, 0.08);">' +
+      `<p style="margin: 0; font-size: 14px; line-height: 1.5; color: #f4f4f4; font-weight: 700;">${escapeHtml(lines[0])}</p>` +
+      "</div>"
+    );
+  }
+
   const signoffLine = lines[0] || "";
   const nameLine = lines[1] || "";
   const metaLines = lines.slice(2);
@@ -612,11 +624,41 @@ function parseBodyBlocks(bodyText) {
 }
 
 function splitParagraphs(text) {
-  return text
-    .replace(/\r\n/g, "\n")
-    .split(/\n\s*\n/)
-    .map((paragraph) => paragraph.trim())
-    .filter(Boolean);
+  const lines = text.replace(/\r\n/g, "\n").split("\n");
+  const paragraphs = [];
+  let current = [];
+
+  const flush = () => {
+    const paragraph = current.map((line) => line.trim()).filter(Boolean).join("\n").trim();
+    if (paragraph) {
+      paragraphs.push(paragraph);
+    }
+    current = [];
+  };
+
+  for (const rawLine of lines) {
+    const line = rawLine.trim();
+    if (!line) {
+      flush();
+      continue;
+    }
+
+    if (current.length === 0) {
+      current.push(line);
+      continue;
+    }
+
+    if (shouldStartNewParagraph(current, line)) {
+      flush();
+      current.push(line);
+      continue;
+    }
+
+    current.push(line);
+  }
+
+  flush();
+  return paragraphs;
 }
 
 function parseListItems(value) {
@@ -646,7 +688,82 @@ function parseListItems(value) {
     };
   }
 
+  if (lines.every(isLikelyImplicitListLine)) {
+    return {
+      ordered: false,
+      items: lines,
+    };
+  }
+
   return null;
+}
+
+function shouldStartNewParagraph(currentLines, nextLine) {
+  const previousLine = currentLines[currentLines.length - 1] || "";
+
+  if (currentLines.length === 1 && looksLikeGreeting(previousLine)) {
+    return true;
+  }
+
+  if (previousLine.endsWith(":")) {
+    return true;
+  }
+
+  if (isLikelyListGroup(currentLines) && !isLikelyListLine(nextLine)) {
+    return true;
+  }
+
+  if (endsSentence(previousLine)) {
+    return true;
+  }
+
+  if (isSignatureStarterLine(nextLine)) {
+    return true;
+  }
+
+  return false;
+}
+
+function isLikelyListGroup(lines) {
+  return lines.length >= 2 && lines.every(isLikelyListLine);
+}
+
+function isLikelyListLine(line) {
+  return isExplicitListLine(line) || isLikelyImplicitListLine(line);
+}
+
+function isExplicitListLine(line) {
+  return /^([-*•])\s+.+$/.test(line) || /^(\d+)[.)]\s+.+$/.test(line);
+}
+
+function isLikelyImplicitListLine(line) {
+  const normalized = safeString(line);
+  if (!normalized || normalized.length > 96) {
+    return false;
+  }
+
+  if (looksLikeGreeting(normalized) || isSignatureStarterLine(normalized) || isDashSignatureLine(normalized)) {
+    return false;
+  }
+
+  if (/[.!?;:]$/.test(normalized)) {
+    return false;
+  }
+
+  const wordCount = normalized.split(/\s+/).length;
+  return wordCount >= 4 && wordCount <= 16;
+}
+
+function endsSentence(line) {
+  return /[.!?]$/.test(safeString(line));
+}
+
+function isSignatureStarterLine(line) {
+  return /^(?:best|thanks|thank you|regards|cheers|sincerely)[,!]?$/i.test(safeString(line));
+}
+
+function isDashSignatureLine(line) {
+  return /^[—-]\s*[A-Z][A-Za-z .'-]{1,40}$/.test(safeString(line));
 }
 
 function isSectionHeading(current, next) {
@@ -679,7 +796,7 @@ function isSectionHeading(current, next) {
 
 function isSignatureParagraph(current, index, paragraphs) {
   if (index < paragraphs.length - 2) {
-    return false;
+    return paragraphs.length > 0 && index === paragraphs.length - 1 && isDashSignatureLine(current);
   }
 
   const lines = current
@@ -688,11 +805,15 @@ function isSignatureParagraph(current, index, paragraphs) {
     .map((line) => line.trim())
     .filter(Boolean);
 
+  if (lines.length === 1) {
+    return isDashSignatureLine(lines[0]);
+  }
+
   if (lines.length < 2 || lines.length > 5) {
     return false;
   }
 
-  return /^(?:best|thanks|thank you|regards|cheers|sincerely)[,!]?$/i.test(lines[0]);
+  return isSignatureStarterLine(lines[0]);
 }
 
 function extractHeuristicMetadata(rawText) {
