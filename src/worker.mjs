@@ -380,37 +380,44 @@ async function extractEmailMetadata(rawText, env) {
     rawText.trim() +
     "\n=== END USER INPUT ===";
 
-  const response = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model: getOpenAIModel(env),
-      store: false,
-      response_format: { type: "json_object" },
-      max_completion_tokens: 120,
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt },
-      ],
-    }),
-  });
+  try {
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: getOpenAIModel(env),
+        store: false,
+        response_format: { type: "json_object" },
+        max_completion_tokens: 120,
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt },
+        ],
+      }),
+    });
 
-  const payload = await response.json();
-  if (!response.ok) {
-    throw new Error(
-      `OpenAI request failed (${response.status}): ${payload?.error?.message || "unknown error"}`,
-    );
+    const payload = await response.json();
+    if (!response.ok) {
+      throw new Error(
+        `OpenAI request failed (${response.status}): ${payload?.error?.message || "unknown error"}`,
+      );
+    }
+
+    const content = extractChatCompletionContent(payload);
+    if (!content) {
+      throw new Error("OpenAI returned empty content");
+    }
+
+    return mergeMetadata(heuristicMetadata, normalizeEmailMetadata(JSON.parse(content)));
+  } catch (error) {
+    logJson("metadata_extraction_fallback", {
+      message: getErrorMessage(error),
+    });
+    return heuristicMetadata;
   }
-
-  const content = payload?.choices?.[0]?.message?.content;
-  if (typeof content !== "string" || !content.trim()) {
-    throw new Error("OpenAI returned empty content");
-  }
-
-  return mergeMetadata(heuristicMetadata, normalizeEmailMetadata(JSON.parse(content)));
 }
 
 function normalizeEmailMetadata(data) {
@@ -547,6 +554,8 @@ function extractHeuristicMetadata(rawText) {
   const detectedAddress = extractFirstEmailAddress(rawText);
   const companyName =
     inferCompanyNameFromText(rawText) ||
+    inferCompanyNameFromDomainMention(rawText) ||
+    inferCompanyNameFromBodyMentions(rawText) ||
     inferCompanyNameFromAddress(detectedAddress) ||
     null;
 
@@ -586,7 +595,80 @@ function inferCompanyNameFromAddress(address) {
     return null;
   }
 
-  return cleanCompanyName(host.replace(/[-_]+/g, " "));
+  return formatCompanyNameFromSlug(host);
+}
+
+function inferCompanyNameFromDomainMention(rawText) {
+  const matches = rawText.matchAll(/\b(?:https?:\/\/)?(?:www\.)?([a-z0-9][a-z0-9-]{1,62})\.[a-z]{2,}\b/gi);
+
+  for (const match of matches) {
+    const candidate = formatCompanyNameFromSlug(match[1]);
+    if (candidate && !isIgnoredCompanyCandidate(candidate)) {
+      return candidate;
+    }
+  }
+
+  return null;
+}
+
+function inferCompanyNameFromBodyMentions(rawText) {
+  const counts = new Map();
+  const matches = rawText.matchAll(/\b([A-Z][A-Za-z0-9]*(?:[-&][A-Za-z0-9]+)*)\b/g);
+
+  for (const match of matches) {
+    const candidate = cleanCompanyName(match[1]);
+    if (!candidate || isIgnoredCompanyCandidate(candidate)) {
+      continue;
+    }
+
+    counts.set(candidate, (counts.get(candidate) || 0) + 1);
+  }
+
+  let winner = null;
+  let highestCount = 1;
+
+  for (const [candidate, count] of counts.entries()) {
+    if (count > highestCount) {
+      winner = candidate;
+      highestCount = count;
+    }
+  }
+
+  return winner;
+}
+
+function isIgnoredCompanyCandidate(value) {
+  return new Set([
+    "Hello",
+    "Hi",
+    "Hey",
+    "Dear",
+    "Best",
+    "Thanks",
+    "Alex",
+    "Rivera",
+    "Product",
+    "AI",
+    "Strategist",
+    "Stackfuse",
+  ]).has(value);
+}
+
+function formatCompanyNameFromSlug(value) {
+  const cleaned = safeString(value)
+    .replace(/\.[a-z]{2,}$/i, "")
+    .replace(/[_\s]+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+
+  if (!cleaned) {
+    return null;
+  }
+
+  return cleaned
+    .split("-")
+    .map((part) => (part ? part.charAt(0).toUpperCase() + part.slice(1).toLowerCase() : ""))
+    .join("-");
 }
 
 function cleanCompanyName(value) {
@@ -602,6 +684,31 @@ function cleanCompanyName(value) {
 function extractFirstEmailAddress(rawText) {
   const match = rawText.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i);
   return match ? match[0] : null;
+}
+
+function extractChatCompletionContent(payload) {
+  const content = payload?.choices?.[0]?.message?.content;
+
+  if (typeof content === "string") {
+    return content.trim();
+  }
+
+  if (Array.isArray(content)) {
+    return content
+      .map((part) => {
+        if (typeof part === "string") {
+          return part;
+        }
+        if (typeof part?.text === "string") {
+          return part.text;
+        }
+        return "";
+      })
+      .join("")
+      .trim();
+  }
+
+  return "";
 }
 
 function deriveSubject(companyName) {

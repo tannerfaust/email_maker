@@ -35,6 +35,13 @@ test("extractHeuristicMetadata finds company and email", () => {
   assert.equal(metadata.to_address, "test@example.com");
 });
 
+test("extractHeuristicMetadata infers company from a domain mention in the body", () => {
+  const metadata = extractHeuristicMetadata(
+    "Hello team,\n\nPavegen already looks interesting.\n\nPavegen also mentions analytics publicly. ([pavegen.com][1])",
+  );
+  assert.equal(metadata.company_name, "Pavegen");
+});
+
 test("parseBodyBlocks preserves heading and following paragraph as a section", () => {
   const blocks = parseBodyBlocks("Hi X-Hunter team,\n\nBuild a free prototype\n\nCreate product videos.");
   assert.deepEqual(blocks[0], { type: "paragraph", text: "Hi X-Hunter team," });
