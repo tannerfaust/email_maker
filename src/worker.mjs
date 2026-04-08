@@ -470,18 +470,26 @@ function renderBodyHtml(bodyText) {
       }
 
       if (block.type === "section") {
+        const bodyList = parseListItems(block.body);
         return (
           '<div style="margin: 0 0 18px 0; padding: 14px 0 0 0; border-top: 1px solid rgba(255, 255, 255, 0.06);">' +
           `<p style="margin: 0 0 10px 0; font-size: 13px; line-height: 1.5; color: #f5f5f5; font-weight: 700; letter-spacing: 0.01em;">${escapeHtml(block.title)}</p>` +
-          '<p style="margin: 0; font-size: 14px; line-height: 1.75; color: #d2d2d2;">' +
-          `${renderMultilineText(block.body)}` +
-          "</p>" +
+          (bodyList
+            ? renderListBlock(bodyList, true)
+            : '<p style="margin: 0; font-size: 14px; line-height: 1.75; color: #d2d2d2;">' +
+              `${renderMultilineText(block.body)}` +
+              "</p>") +
           "</div>"
         );
       }
 
       if (block.type === "signature") {
         return renderSignatureBlock(block);
+      }
+
+      const paragraphList = parseListItems(block.text);
+      if (paragraphList) {
+        return renderListBlock(paragraphList, index !== blocks.length - 1);
       }
 
       return (
@@ -540,6 +548,22 @@ function renderSignatureBlock(block) {
   );
 }
 
+function renderListBlock(list, withBottomSpacing = true) {
+  const tagName = list.ordered ? "ol" : "ul";
+  const marginBottom = withBottomSpacing ? "18" : "0";
+
+  return (
+    `<${tagName} style="margin: 0 0 ${marginBottom}px 0; padding-left: 22px; color: #d2d2d2;">` +
+    list.items
+      .map(
+        (item) =>
+          `<li style="margin: 0 0 8px 0; font-size: 14px; line-height: 1.75;">${renderParagraphText(item)}</li>`,
+      )
+      .join("") +
+    `</${tagName}>`
+  );
+}
+
 function buildPlainBody(structured) {
   return structured.body_text.trim();
 }
@@ -593,6 +617,36 @@ function splitParagraphs(text) {
     .split(/\n\s*\n/)
     .map((paragraph) => paragraph.trim())
     .filter(Boolean);
+}
+
+function parseListItems(value) {
+  const lines = safeString(value)
+    .replace(/\r\n/g, "\n")
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  if (lines.length < 2) {
+    return null;
+  }
+
+  const bulletMatches = lines.map((line) => line.match(/^([-*•])\s+(.+)$/));
+  if (bulletMatches.every(Boolean)) {
+    return {
+      ordered: false,
+      items: bulletMatches.map((match) => match[2].trim()),
+    };
+  }
+
+  const orderedMatches = lines.map((line) => line.match(/^(\d+)[.)]\s+(.+)$/));
+  if (orderedMatches.every(Boolean)) {
+    return {
+      ordered: true,
+      items: orderedMatches.map((match) => match[2].trim()),
+    };
+  }
+
+  return null;
 }
 
 function isSectionHeading(current, next) {

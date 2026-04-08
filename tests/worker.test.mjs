@@ -99,6 +99,24 @@ test("renderBodyHtml adds light structure for greeting, sections, and signature"
   assert.match(html, /font-weight: 700;[^>]*>Alex Rivera<\/p>/);
 });
 
+test("renderBodyHtml turns bullet-style lines into an unordered list", () => {
+  const html = renderBodyHtml("Hello team,\n\n- First point\n- Second point\n- Third point");
+
+  assert.match(html, /<ul style=/);
+  assert.match(html, /<li[^>]*>First point<\/li>/);
+  assert.doesNotMatch(html, /- First point/);
+});
+
+test("renderBodyHtml turns numbered section bodies into an ordered list", () => {
+  const html = renderBodyHtml(
+    "Hello team,\n\nNext steps\n\n1. Review the prototype\n2. Pick a direction\n3. Schedule the call",
+  );
+
+  assert.match(html, /<ol style=/);
+  assert.match(html, /<li[^>]*>Review the prototype<\/li>/);
+  assert.match(html, /<p style=\"margin: 0 0 10px 0; font-size: 13px;/);
+});
+
 test("buildEmailMessage emits an RFC822 multipart message", () => {
   const bytes = buildEmailMessage({
     structured: buildPreservedEmail("Hi", { company_name: "X-Hunter" }),
