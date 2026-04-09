@@ -5,6 +5,7 @@ import {
   buildEmailMessage,
   buildPreservedEmail,
   buildPlainBody,
+  detectTemplateKey,
   extractAddresses,
   extractHeuristicMetadata,
   fillTemplate,
@@ -92,6 +93,15 @@ test("buildPreservedEmail keeps the original body text unchanged", () => {
   assert.equal(structured.body_text, rawText);
   assert.equal(structured.company_name, "X-Hunter");
   assert.equal(structured.subject, "For X-Hunter");
+  assert.equal(structured.template_key, "default");
+});
+
+test("detectTemplateKey routes accessibility outreach to the EAA template", () => {
+  const templateKey = detectTemplateKey(
+    "Hello,\n\nWith the European Accessibility Act bringing more attention to accessibility for businesses serving EU customers, many ecommerce teams are now reviewing storefront accessibility issues.",
+  );
+
+  assert.equal(templateKey, "accessibility");
 });
 
 test("resolveToAddress prefers explicit valid email, then structured fallback", () => {
@@ -111,6 +121,21 @@ test("fillTemplate injects escaped company name and preserved body html", () => 
 
   assert.match(html, /ACME &lt;Corp&gt;/);
   assert.match(html, /Line one<br \/>line two/);
+});
+
+test("fillTemplate uses the accessibility template for EAA emails", () => {
+  const html = fillTemplate(
+    buildPreservedEmail(
+      "Hello,\n\nWe help ecommerce teams review accessibility issues tied to the EAA and EU customers.\n\nBest,\nAlex",
+      { company_name: "Huel" },
+    ),
+  );
+
+  assert.match(html, /Stackfuse Accessibility/);
+  assert.match(html, /EU ecommerce accessibility/);
+  assert.match(html, /accessibility\.stackfuse\.pro/);
+  assert.match(html, /background-color: #faf7f2/);
+  assert.match(html, /box-shadow: 6px 6px 0 #1a1612/);
 });
 
 test("renderBodyHtml adds light structure for greeting, sections, and signature", () => {
@@ -164,6 +189,18 @@ test("renderBodyHtml expands Alex signatures but leaves other names alone", () =
   assert.match(alexHtml, /Product &amp; AI Strategist<br \/>Stackfuse/);
   assert.match(otherHtml, /Matthew<\/p>/);
   assert.doesNotMatch(otherHtml, /Alex Rivera/);
+});
+
+test("renderBodyHtml uses warm accessibility styling when requested", () => {
+  const html = renderBodyHtml(
+    "Hello,\n\nAccessibility review\n\nWe help teams fix storefront accessibility issues.\n\nBest,\nAlex",
+    "accessibility",
+  );
+
+  assert.match(html, /border-bottom: 1px solid #d5cabb/);
+  assert.match(html, /border-top: 1px solid #1a1612/);
+  assert.match(html, /color: #1a1612; font-weight: 700/);
+  assert.match(html, /color: #3d3630/);
 });
 
 test("buildEmailMessage emits an RFC822 multipart message", () => {

@@ -2,7 +2,7 @@ const DEFAULT_OPENAI_MODEL = "gpt-5-nano";
 const DEFAULT_FROM = "Stackfuse <contact@stackfuse.pro>";
 const TELEGRAM_WEBHOOK_PATH = "/webhook/telegram";
 const DEFAULT_ALEX_SIGNATURE = ["Alex Rivera", "Product & AI Strategist", "Stackfuse"];
-const TEMPLATE_HTML = `<!DOCTYPE html>
+const DEFAULT_TEMPLATE_HTML = `<!DOCTYPE html>
 <html lang="en" style="margin:0; padding:0;">
   <head>
     <meta charset="UTF-8" />
@@ -124,7 +124,7 @@ const TEMPLATE_HTML = `<!DOCTYPE html>
                             </svg>
                           </td>
                           <td style="color:#f4f4f4; font-size:13px; font-weight:600; letter-spacing:0.03em;">
-                            Stackfuse
+                            {{brand_name}}
                           </td>
                         </tr>
                       </table>
@@ -171,7 +171,7 @@ const TEMPLATE_HTML = `<!DOCTYPE html>
                       "
                     >
                       <a
-                        href="https://stackfuse.pro/"
+                        href="{{footer_url}}"
                         style="
                           color: #c8c8c8;
                           text-decoration: none;
@@ -180,7 +180,7 @@ const TEMPLATE_HTML = `<!DOCTYPE html>
                           font-family: 'IBM Plex Mono', 'SFMono-Regular', Consolas, monospace;
                         "
                       >
-                        stackfuse.pro
+                        {{footer_label}}
                       </a>
                     </td>
                   </tr>
@@ -194,6 +194,247 @@ const TEMPLATE_HTML = `<!DOCTYPE html>
   </body>
 </html>
 `;
+
+const ACCESSIBILITY_TEMPLATE_HTML = `<!DOCTYPE html>
+<html lang="en" style="margin:0; padding:0;">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{{subject}}</title>
+    <meta name="x-preheader" content="{{preheader}}" />
+    <style>
+      @media only screen and (max-width: 600px) {
+        .a11y-shell {
+          width: 100% !important;
+        }
+        .a11y-inner {
+          padding: 20px !important;
+        }
+        .a11y-head-copy,
+        .a11y-head-meta {
+          display: block !important;
+          width: 100% !important;
+        }
+        .a11y-head-meta {
+          padding-top: 14px !important;
+          text-align: left !important;
+        }
+      }
+    </style>
+  </head>
+  <body
+    style="
+      margin: 0;
+      padding: 0;
+      background-color: #faf7f2;
+      background-image:
+        linear-gradient(transparent 23px, rgba(26, 22, 18, 0.025) 24px),
+        linear-gradient(90deg, transparent 23px, rgba(26, 22, 18, 0.025) 24px);
+      background-size: 24px 24px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      color: #1a1612;
+    "
+  >
+    <div
+      style="
+        display: none;
+        font-size: 1px;
+        line-height: 1px;
+        max-height: 0;
+        max-width: 0;
+        opacity: 0;
+        overflow: hidden;
+        mso-hide: all;
+        visibility: hidden;
+      "
+    >
+      {{preheader}}
+    </div>
+
+    <table
+      role="presentation"
+      cellpadding="0"
+      cellspacing="0"
+      border="0"
+      width="100%"
+      style="padding: 24px 0; background: #faf7f2;"
+    >
+      <tr>
+        <td align="center">
+          <table
+            role="presentation"
+            cellpadding="0"
+            cellspacing="0"
+            border="0"
+            width="100%"
+            class="a11y-shell"
+            style="
+              max-width: 640px;
+              width: 100%;
+              background: #ffffff;
+              border: 2px solid #1a1612;
+              border-radius: 16px;
+              box-shadow: 6px 6px 0 #1a1612;
+              overflow: hidden;
+            "
+          >
+            <tr>
+              <td
+                style="
+                  padding: 0;
+                  height: 10px;
+                  background: linear-gradient(90deg, #c65d3a 0%, #f5ddd2 55%, #fff2ec 100%);
+                  font-size: 0;
+                  line-height: 0;
+                "
+              >
+                &nbsp;
+              </td>
+            </tr>
+            <tr>
+              <td
+                class="a11y-inner"
+                style="
+                  padding: 20px 24px 16px 24px;
+                  background: #f3ede3;
+                  border-bottom: 2px solid #1a1612;
+                "
+              >
+                <table width="100%" cellpadding="0" cellspacing="0" role="presentation">
+                  <tr>
+                    <td class="a11y-head-copy" align="left" style="vertical-align: top;">
+                      <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+                        <tr>
+                          <td style="width: 28px; padding-right: 10px; vertical-align: top;">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="471.98 357.24 979.74 1097.98" width="22" height="22" style="display:block;" aria-hidden="true">
+                              <path fill="#C65D3A" transform="scale(1.91211 1.91211)" d="M511.563 186.828C513.244 188.872 522.343 228.804 523.618 233.994L543.097 312.361L555.406 361.301C557.382 369.4 559.91 378.793 561.259 386.885C576.452 374.875 592.174 360.238 607.061 347.575L715.991 254.911C713.55 266.139 709.262 279.47 706.009 290.734L691.097 342.799C680.327 379.623 670.099 418.039 659.768 455.098C682.535 454.745 705.607 455.279 728.358 455.053C734.71 454.989 753.986 455.477 759.221 454.52C748.967 467.404 738.392 482.464 728.64 495.849L674.123 570.884C678.44 578.235 683.658 589.7 687.519 597.617C694.781 612.604 702.15 627.539 709.627 642.42C712.765 648.697 717.12 657.99 720.725 663.827C685.058 663.5 649.389 663.382 613.72 663.471C610.959 669.261 608.299 675.859 605.561 681.806L569.256 761.054C563.962 755.442 559.019 749.558 553.827 743.854L516.391 702.895C510.449 696.378 495.226 681.074 491.139 675.217C476.781 683.455 459.883 691.539 445.021 699.077L386.151 729.336L346.575 749.558C348.012 744.894 355.786 728.037 358.119 722.522L386.571 655.49L266.338 656.011C272.585 651.443 279.88 645.307 286.045 640.431L329.88 605.507C335.892 600.7 348.177 590.234 354.16 586.304L246.835 384.073C250.509 386.166 255.464 389.672 259.143 392.048L284.386 408.327L337.754 442.595C351.387 451.412 365.82 461.061 379.582 469.501C375.898 460.557 372.141 448.563 368.993 439.253C362.408 420.157 356.025 400.992 349.844 381.762L320.684 294.041C317.064 283.145 312.99 272.365 309.584 261.433C361.154 304.555 415.151 346.356 467.244 388.968C474.051 355.794 481.457 323.012 488.876 289.987C496.524 255.943 503.365 220.647 511.563 186.828Z"/>
+                              <path fill="#FAF7F2" transform="scale(1.91211 1.91211)" d="M593.826 434.939L594.107 435.257C594.16 438.017 591.266 453.204 590.75 457.748C587.873 483.09 583.162 508.979 580.27 534.235L678.032 495.407C659.26 516.658 640.667 542.02 621.739 562.603C634.16 580.933 646.181 599.531 657.793 618.383C637.9 617.305 617.956 614.701 598.058 613.446C594.611 613.228 591.096 612.944 587.69 612.386C578.345 639.722 569.707 668.01 560.948 695.565C549.557 679.278 536.712 663.07 524.691 647.224C518.618 639.219 511.458 630.672 505.823 622.469L499.169 625.652C475.227 636.594 449.385 647.183 426.053 658.191C431.376 649.366 438.304 639.492 444.147 630.788L477.345 581.802C467.43 569.148 457.417 556.355 447.308 543.861C440.46 535.398 433.003 527.195 426.107 518.691C431.58 521.102 444.306 524.546 450.55 526.537C466.922 531.757 483.456 536.695 499.676 542.441C499.209 529.327 497.531 512.947 496.564 499.495C495.534 485.148 494.628 466.557 492.782 452.692C508.119 471.593 527.12 497.511 541.168 517.528C551.638 501.553 562 485.508 572.256 469.394C579.755 457.723 586.901 447.031 593.826 434.939Z"/>
+                            </svg>
+                          </td>
+                          <td style="vertical-align: top;">
+                            <div style="font-size: 13px; line-height: 1.2; color: #1a1612; font-weight: 800; letter-spacing: 0.02em;">
+                              {{brand_name}}
+                            </div>
+                            <div style="margin-top: 5px; font-size: 10px; line-height: 1.4; color: #7a7068; text-transform: uppercase; letter-spacing: 0.14em; font-family: 'IBM Plex Mono', 'SFMono-Regular', Consolas, monospace;">
+                              EU ecommerce accessibility
+                            </div>
+                          </td>
+                        </tr>
+                      </table>
+                    </td>
+                    <td class="a11y-head-meta" align="right" style="vertical-align: top; font-size: 11px; line-height: 1.5; color: #7a7068; text-transform: uppercase; letter-spacing: 0.12em; font-family: 'IBM Plex Mono', 'SFMono-Regular', Consolas, monospace;">
+                      For {{company_name}}
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+
+            <tr>
+              <td class="a11y-inner" style="padding: 0 24px 22px 24px; background: #ffffff;">
+                {{body_html}}
+              </td>
+            </tr>
+
+            <tr>
+              <td
+                style="
+                  padding: 16px 24px 18px 24px;
+                  background: #1a1612;
+                  border-top: 2px solid #1a1612;
+                "
+              >
+                <table width="100%" cellpadding="0" cellspacing="0" role="presentation">
+                  <tr>
+                    <td
+                      style="
+                        font-size: 11px;
+                        line-height: 1.65;
+                        color: rgba(250, 247, 242, 0.62);
+                        text-transform: uppercase;
+                        letter-spacing: 0.1em;
+                        font-family: 'IBM Plex Mono', 'SFMono-Regular', Consolas, monospace;
+                      "
+                    >
+                      {{footer_note}}
+                    </td>
+                    <td
+                      align="right"
+                      style="
+                        font-size: 11px;
+                        line-height: 1.65;
+                        color: rgba(250, 247, 242, 0.82);
+                      "
+                    >
+                      <a
+                        href="{{footer_url}}"
+                        style="
+                          color: #faf7f2;
+                          text-decoration: none;
+                          letter-spacing: 0.1em;
+                          text-transform: uppercase;
+                          font-family: 'IBM Plex Mono', 'SFMono-Regular', Consolas, monospace;
+                        "
+                      >
+                        {{footer_label}}
+                      </a>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>
+`;
+
+const TEMPLATE_VARIANTS = {
+  default: {
+    key: "default",
+    html: DEFAULT_TEMPLATE_HTML,
+    brand_name: "Stackfuse",
+    footer_label: "stackfuse.pro",
+    footer_url: "https://stackfuse.pro/",
+    footer_note: "",
+    styles: {
+      greeting_border: "rgba(255, 255, 255, 0.08)",
+      greeting_text: "#f6f6f6",
+      section_border: "rgba(255, 255, 255, 0.06)",
+      section_title: "#f5f5f5",
+      paragraph_text: "#d2d2d2",
+      strong_text: "#ededed",
+      signature_border: "rgba(255, 255, 255, 0.08)",
+      signature_name: "#f4f4f4",
+      signature_text: "#d8d8d8",
+      signature_meta: "#9a9a9a",
+      list_text: "#d2d2d2",
+    },
+  },
+  accessibility: {
+    key: "accessibility",
+    html: ACCESSIBILITY_TEMPLATE_HTML,
+    brand_name: "Stackfuse Accessibility",
+    footer_label: "accessibility.stackfuse.pro",
+    footer_url: "https://accessibility.stackfuse.pro/",
+    footer_note: "EU ecommerce accessibility",
+    styles: {
+      greeting_border: "#d5cabb",
+      greeting_text: "#1a1612",
+      section_border: "#1a1612",
+      section_title: "#1a1612",
+      paragraph_text: "#3d3630",
+      strong_text: "#1a1612",
+      signature_border: "#1a1612",
+      signature_name: "#1a1612",
+      signature_text: "#3d3630",
+      signature_meta: "#7a7068",
+      list_text: "#3d3630",
+    },
+  },
+};
 
 const START_MESSAGE =
   "Send me the rough text or notes for an email.\n\n" +
@@ -427,43 +668,50 @@ function normalizeEmailMetadata(data) {
 function buildPreservedEmail(rawText, metadata = {}) {
   const bodyText = rawText.trim();
   const companyName = metadata.company_name || inferCompanyNameFromText(bodyText) || "Your Team";
+  const template = getTemplateVariant(bodyText);
 
   return {
     subject: deriveSubject(companyName),
     preheader: buildPreheader(bodyText),
     company_name: companyName,
+    template_key: template.key,
     body_text: bodyText,
-    body_html: renderBodyHtml(bodyText),
-    footer_note: "",
+    body_html: renderBodyHtml(bodyText, template.key),
+    footer_note: template.footer_note,
     to_address: optionalString(metadata.to_address),
   };
 }
 
 function fillTemplate(structured) {
+  const template = getTemplateVariantByKey(structured.template_key);
   const replacements = {
     "{{subject}}": escapeHtml(structured.subject),
     "{{preheader}}": escapeHtml(structured.preheader),
     "{{company_name}}": escapeHtml(structured.company_name),
+    "{{brand_name}}": escapeHtml(template.brand_name),
     "{{body_html}}": structured.body_html,
     "{{footer_note}}": renderMultilineText(structured.footer_note),
+    "{{footer_url}}": escapeAttribute(template.footer_url),
+    "{{footer_label}}": escapeHtml(template.footer_label),
   };
 
-  let html = TEMPLATE_HTML;
+  let html = template.html;
   for (const [key, value] of Object.entries(replacements)) {
     html = html.replaceAll(key, value);
   }
   return html;
 }
 
-function renderBodyHtml(bodyText) {
+function renderBodyHtml(bodyText, templateKey = "default") {
   const blocks = parseBodyBlocks(bodyText);
+  const styles = getTemplateVariantByKey(templateKey).styles;
 
   return blocks
     .map((block, index) => {
       if (block.type === "greeting") {
         return (
-          '<div style="margin: 0 0 22px 0; padding: 0 0 14px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.08);">' +
-          '<p style="margin: 0; font-size: 15px; line-height: 1.75; color: #f6f6f6; font-weight: 700;">' +
+          `<div style="margin: 0 0 22px 0; padding: 0 0 14px 0; border-bottom: 1px solid ${styles.greeting_border};">` +
+          `<p style="margin: 0; font-size: 15px; line-height: 1.75; color: ${styles.greeting_text}; font-weight: 700;">` +
           `${renderMultilineText(block.text)}` +
           "</p>" +
           "</div>"
@@ -473,11 +721,11 @@ function renderBodyHtml(bodyText) {
       if (block.type === "section") {
         const bodyList = parseListItems(block.body);
         return (
-          '<div style="margin: 0 0 18px 0; padding: 14px 0 0 0; border-top: 1px solid rgba(255, 255, 255, 0.06);">' +
-          `<p style="margin: 0 0 10px 0; font-size: 13px; line-height: 1.5; color: #f5f5f5; font-weight: 700; letter-spacing: 0.01em;">${escapeHtml(block.title)}</p>` +
+          `<div style="margin: 0 0 18px 0; padding: 14px 0 0 0; border-top: 1px solid ${styles.section_border};">` +
+          `<p style="margin: 0 0 10px 0; font-size: 13px; line-height: 1.5; color: ${styles.section_title}; font-weight: 700; letter-spacing: 0.01em;">${escapeHtml(block.title)}</p>` +
           (bodyList
-            ? renderListBlock(bodyList, true)
-            : '<p style="margin: 0; font-size: 14px; line-height: 1.75; color: #d2d2d2;">' +
+            ? renderListBlock(bodyList, styles, true)
+            : `<p style="margin: 0; font-size: 14px; line-height: 1.75; color: ${styles.paragraph_text};">` +
               `${renderMultilineText(block.body)}` +
               "</p>") +
           "</div>"
@@ -485,17 +733,17 @@ function renderBodyHtml(bodyText) {
       }
 
       if (block.type === "signature") {
-        return renderSignatureBlock(block);
+        return renderSignatureBlock(block, styles);
       }
 
       const paragraphList = parseListItems(block.text);
       if (paragraphList) {
-        return renderListBlock(paragraphList, index !== blocks.length - 1);
+        return renderListBlock(paragraphList, styles, index !== blocks.length - 1);
       }
 
       return (
-        `<p style="margin: 0 0 ${index === blocks.length - 1 ? "0" : "18"}px 0; font-size: 14px; line-height: 1.75; color: #d2d2d2;">` +
-        `${renderParagraphText(block.text)}` +
+        `<p style="margin: 0 0 ${index === blocks.length - 1 ? "0" : "18"}px 0; font-size: 14px; line-height: 1.75; color: ${styles.paragraph_text};">` +
+        `${renderParagraphText(block.text, styles)}` +
         "</p>"
       );
     })
@@ -506,10 +754,10 @@ function renderMultilineText(value) {
   return escapeHtml(value).replaceAll("\n", "<br />");
 }
 
-function renderParagraphText(value) {
+function renderParagraphText(value, styles = getTemplateVariantByKey("default").styles) {
   const normalized = safeString(value);
   if (!normalized.includes("\n") && normalized.length <= 96 && normalized.endsWith(":")) {
-    return `<strong style="color: #ededed;">${escapeHtml(normalized)}</strong>`;
+    return `<strong style="color: ${styles.strong_text};">${escapeHtml(normalized)}</strong>`;
   }
 
   const emphasisMatch = normalized.match(/^([^:\n]{3,72}:)(\s+.+)$/);
@@ -518,17 +766,17 @@ function renderParagraphText(value) {
   }
 
   return (
-    `<strong style="color: #ededed;">${escapeHtml(emphasisMatch[1])}</strong>` +
+    `<strong style="color: ${styles.strong_text};">${escapeHtml(emphasisMatch[1])}</strong>` +
     ` ${renderMultilineText(emphasisMatch[2].trimStart())}`
   );
 }
 
-function renderSignatureBlock(block) {
+function renderSignatureBlock(block, styles = getTemplateVariantByKey("default").styles) {
   const lines = normalizeSignatureLines(block.lines.map((line) => safeString(line)).filter(Boolean));
   if (lines.length === 1 && isDashSignatureLine(lines[0])) {
     return (
-      '<div style="margin: 26px 0 0 0; padding: 16px 0 0 0; border-top: 1px solid rgba(255, 255, 255, 0.08);">' +
-      `<p style="margin: 0; font-size: 14px; line-height: 1.5; color: #f4f4f4; font-weight: 700;">${escapeHtml(lines[0])}</p>` +
+      `<div style="margin: 26px 0 0 0; padding: 16px 0 0 0; border-top: 1px solid ${styles.signature_border};">` +
+      `<p style="margin: 0; font-size: 14px; line-height: 1.5; color: ${styles.signature_name}; font-weight: 700;">${escapeHtml(lines[0])}</p>` +
       "</div>"
     );
   }
@@ -542,22 +790,22 @@ function renderSignatureBlock(block) {
   const parts = [];
   if (signoffLine) {
     parts.push(
-      `<p style="margin: 0 0 10px 0; font-size: 14px; line-height: 1.7; color: #d8d8d8;">${escapeHtml(signoffLine)}</p>`,
+      `<p style="margin: 0 0 10px 0; font-size: 14px; line-height: 1.7; color: ${styles.signature_text};">${escapeHtml(signoffLine)}</p>`,
     );
   }
   if (nameLine) {
     parts.push(
-      `<p style="margin: 0 0 6px 0; font-size: 14px; line-height: 1.5; color: #f4f4f4; font-weight: 700;">${escapeHtml(nameLine)}</p>`,
+      `<p style="margin: 0 0 6px 0; font-size: 14px; line-height: 1.5; color: ${styles.signature_name}; font-weight: 700;">${escapeHtml(nameLine)}</p>`,
     );
   }
   if (metaLines.length > 0) {
     parts.push(
-      `<p style="margin: 0; font-size: 13px; line-height: 1.65; color: #9a9a9a;">${metaLines.map(escapeHtml).join("<br />")}</p>`,
+      `<p style="margin: 0; font-size: 13px; line-height: 1.65; color: ${styles.signature_meta};">${metaLines.map(escapeHtml).join("<br />")}</p>`,
     );
   }
 
   return (
-    '<div style="margin: 26px 0 0 0; padding: 16px 0 0 0; border-top: 1px solid rgba(255, 255, 255, 0.08);">' +
+    `<div style="margin: 26px 0 0 0; padding: 16px 0 0 0; border-top: 1px solid ${styles.signature_border};">` +
     parts.join("") +
     "</div>"
   );
@@ -584,16 +832,16 @@ function normalizeSignatureLines(lines) {
   return [...normalized, ...preservedMetaLines];
 }
 
-function renderListBlock(list, withBottomSpacing = true) {
+function renderListBlock(list, styles, withBottomSpacing = true) {
   const tagName = list.ordered ? "ol" : "ul";
   const marginBottom = withBottomSpacing ? "18" : "0";
 
   return (
-    `<${tagName} style="margin: 0 0 ${marginBottom}px 0; padding-left: 22px; color: #d2d2d2;">` +
+    `<${tagName} style="margin: 0 0 ${marginBottom}px 0; padding-left: 22px; color: ${styles.list_text};">` +
     list.items
       .map(
         (item) =>
-          `<li style="margin: 0 0 8px 0; font-size: 14px; line-height: 1.75;">${renderParagraphText(item)}</li>`,
+          `<li style="margin: 0 0 8px 0; font-size: 14px; line-height: 1.75;">${renderParagraphText(item, styles)}</li>`,
       )
       .join("") +
     `</${tagName}>`
@@ -981,6 +1229,62 @@ function cleanCompanyName(value) {
   return normalized || null;
 }
 
+function getTemplateVariantByKey(key) {
+  return TEMPLATE_VARIANTS[key] || TEMPLATE_VARIANTS.default;
+}
+
+function getTemplateVariant(bodyText) {
+  return getTemplateVariantByKey(detectTemplateKey(bodyText));
+}
+
+function detectTemplateKey(bodyText) {
+  const normalized = safeString(bodyText).toLowerCase();
+  if (!normalized) {
+    return "default";
+  }
+
+  const directSignals = [
+    "accessibility",
+    "accessability",
+    "accesibility",
+    "accessible",
+    "european accessibility act",
+    "eaa",
+    "a11y",
+    "wcag",
+    "screen reader",
+    "keyboard navigation",
+    "aria",
+    "alt text",
+    "accessibility.stackfuse.pro",
+  ];
+
+  if (directSignals.some((signal) => normalized.includes(signal))) {
+    return "accessibility";
+  }
+
+  const contextualSignals = [
+    "storefront accessibility",
+    "accessibility review",
+    "accessibility issues",
+    "accessibility and usability",
+    "eu customers",
+    "eu market",
+    "usability issues",
+    "compliance",
+    "remediation",
+  ];
+
+  let score = 0;
+  for (const signal of contextualSignals) {
+    if (normalized.includes(signal)) {
+      score += 1;
+    }
+  }
+
+  return score >= 2 ? "accessibility" : "default";
+}
+
 function extractFirstEmailAddress(rawText) {
   const match = rawText.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i);
   return match ? match[0] : null;
@@ -1158,6 +1462,10 @@ function escapeHtml(value) {
     .replaceAll("'", "&#39;");
 }
 
+function escapeAttribute(value) {
+  return escapeHtml(value);
+}
+
 function encodeMimeHeader(value) {
   if (/^[\x20-\x7E]*$/.test(value)) {
     return value;
@@ -1236,6 +1544,7 @@ export {
   buildEmailMessage,
   buildPreservedEmail,
   buildPlainBody,
+  detectTemplateKey,
   escapeHtml,
   extractAddresses,
   extractHeuristicMetadata,
